@@ -18,7 +18,7 @@
 
 【合约地址】0x618251500a70449F012f0db43f6297E5fb13b5fD
 
-![image-20251020094715487](.\img\task2_1-1.png)
+![task2_1-1.png](./img/task2_1-1.img)
 
 ### ✅ **作业2：在测试网上发行一个图文并茂的 NFT**
 任务目标
@@ -52,7 +52,7 @@
 
 【合约地址】0xf27f5De052edd79a1e82Ccd84bC544A6E997378f
 
-![image-20251020095137462](.\img\task2_2-1.png)
+![task2_2-1.png](.\img\task2_2-1.png)
 
 ### ✅ **作业3：编写一个讨饭合约**
 任务目标
@@ -101,9 +101,9 @@
 
 捐赠事件、捐赠排行榜：
 
-![task2_2-2.png](./img/task2_3-1.png)
+![task2_3-1.png](./img/task2_3-1.png)
 
 时间限制：
 
-![task2_2-2.png](./img/task2_3-2.png)
+![task2_3-2.png](./img/task2_3-2.png)
 
