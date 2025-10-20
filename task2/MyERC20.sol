@@ -16,45 +16,99 @@ approve 和 transferFrom：授权和代扣转账。,
 */
 contract MyERC20 {
   
-  mapping (address => uint) public balances;
-  mapping (address => uint) public allowances;
+  // 代币元数据
+    string public constant name = "SimpleToken";      // 代币名称
+    string public constant symbol = "STK";           // 代币符号
+    uint8 public constant decimals = 18;             // 小数位数（主流为18）
 
-  event eventTransfer(address indexed _from, address indexed _to, uint _value, string _msg);
-  event eventApproval(address indexed _owner, address indexed _spender, uint _value);
+    // 账户余额映射（地址 => 余额）
+    mapping(address => uint256) public balanceOf;
+    
+    // 授权额度映射（owner地址 => spender地址 => 授权额度）
+    mapping(address => mapping(address => uint256)) public allowance;
+    
+    // 代币总供应量
+    uint256 public totalSupply;
+    
+    // 合约所有者地址（用于增发权限控制）
+    address public owner;
 
-  function mint(address _to, uint amount) external returns (bool) {
-    balances[_to] += amount;
-    return true;
-  }
+    // 转账事件（记录代币转移）
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    
+    // 授权事件（记录授权操作）
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
-  // 查询账户余额
-  function balanceOf(address _addr) external view returns (uint) {
-    return balances[_addr];
-  }
+    /**
+     * @dev 构造函数：初始化代币，分配初始供应量给合约部署者
+     * @param initialSupply 初始供应量（无小数位，如1000表示1000 STK）
+     */
+    constructor(uint256 initialSupply) {
+        owner = msg.sender;                              // 设置部署者为合约所有者
+        totalSupply = initialSupply * 10 ** decimals;    // 计算带小数的总供应量（如1000 * 10^18）
+        balanceOf[msg.sender] = totalSupply;             // 将初始供应量分配给部署者
+        emit Transfer(address(0), msg.sender, totalSupply); // 触发Transfer事件（从0地址到部署者）
+    }
 
-  // 转账
-  function transfer(address _to, uint amount) external {
-    require(balances[msg.sender] >= amount, "Insufficient balance");
-    balances[msg.sender] -= amount;
-    balances[_to] += amount;
-    emit eventTransfer(msg.sender, _to, amount, "transfer");
-  }
+    /**
+     * @dev 转账函数：从调用者地址向目标地址转移代币
+     * @param to 目标地址
+     * @param amount 转移金额
+     * @return bool 操作是否成功
+     */
+    function transfer(address to, uint256 amount) external returns (bool) {
+        require(to != address(0), "ERC20: transfer to zero address"); // 禁止向0地址转账
+        require(balanceOf[msg.sender] >= amount, "ERC20: insufficient balance"); // 检查余额是否充足
+        
+        balanceOf[msg.sender] -= amount; // 扣除调用者余额
+        balanceOf[to] += amount;         // 增加目标地址余额
+        emit Transfer(msg.sender, to, amount); // 触发Transfer事件
+        return true;
+    }
 
-  // 授权
-  function approve(address _spender, uint permission) external returns (bool) {
-    allowances[_spender] = permission;
-    emit eventApproval(msg.sender, _spender, permission);
-    return true;
-  }
+    /**
+     * @dev 授权函数：允许spender地址从调用者地址转移指定数量的代币
+     * @param spender 被授权的地址（如去中心化交易所合约）
+     * @param amount 授权额度
+     * @return bool 操作是否成功
+     */
+    function approve(address spender, uint256 amount) external returns (bool) {
+        require(spender != address(0), "ERC20: approve to zero address"); // 禁止授权给0地址
+        allowance[msg.sender][spender] = amount; // 记录授权额度
+        emit Approval(msg.sender, spender, amount); // 触发Approval事件
+        return true;
+    }
 
-  function transferFrom(address _from, address _to, uint amount) external returns (bool) {
-    require(allowances[_from] != 1, "Insufficient allowance");
-    require(balances[_from] >= amount, "Insufficient balance");
-    allowances[_from] -= amount;
-    balances[_from] -= amount;
-    balances[_to] += amount;
-    emit eventTransfer(_from, _to, amount, "transferFrom");
-    return true;
-  }
+    /**
+     * @dev 代扣转账函数：从from地址向to地址转移amount代币（需from地址授权spender）
+     * @param from 转出地址
+     * @param to 转入地址
+     * @param amount 转移金额
+     * @return bool 操作是否成功
+     */
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        require(from != address(0), "ERC20: transfer from zero address"); // 禁止从0地址转出
+        require(to != address(0), "ERC20: transfer to zero address");     // 禁止向0地址转账
+        require(balanceOf[from] >= amount, "ERC20: insufficient balance"); // 检查转出地址余额
+        require(allowance[from][msg.sender] >= amount, "ERC20: insufficient allowance"); // 检查授权额度
+        
+        allowance[from][msg.sender] -= amount; // 扣除spender的剩余授权额度
+        balanceOf[from] -= amount;             // 扣除转出地址余额
+        balanceOf[to] += amount;               // 增加转入地址余额
+        emit Transfer(from, to, amount);       // 触发Transfer事件
+        return true;
+    }
+
+    /**
+     * @dev 增发函数：合约所有者调用，增加代币总供应量并分配给指定地址
+     * @param to 增发目标地址
+     * @param amount 增发金额（无小数位）
+     */
+    function mint(address to, uint256 amount) external {
+        require(msg.sender == owner, "ERC20: only owner can mint"); // 仅所有者可调用
+        totalSupply += amount * 10 ** decimals; // 计算带小数的增发量并更新总供应量
+        balanceOf[to] += amount * 10 ** decimals; // 增加目标地址余额
+        emit Transfer(address(0), to, amount * 10 ** decimals); // 触发Transfer事件（从0地址到目标地址）
+    }
 
 }
